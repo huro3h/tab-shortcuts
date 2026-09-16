@@ -236,6 +236,35 @@ test('tabIdsToReloadAll: 全部破棄されていれば空', () => {
   assert.deepEqual(tabIdsToReloadAll(tabs), []);
 });
 
+test('tabIdsToReloadAll: 通常ウィンドウからはシークレットタブを触らない', () => {
+  const tabs = [
+    { id: 10 },
+    { id: 11, incognito: true },
+    { id: 12, incognito: false },
+    { id: 13, incognito: true },
+  ];
+
+  assert.deepEqual(tabIdsToReloadAll(tabs, false), [10, 12]);
+});
+
+test('tabIdsToReloadAll: シークレットから押せばシークレットだけが対象', () => {
+  const tabs = [
+    { id: 10 },
+    { id: 11, incognito: true },
+    { id: 12, incognito: true, discarded: true },
+    { id: 13, incognito: true },
+  ];
+
+  // 破棄されたシークレットタブも起こさない
+  assert.deepEqual(tabIdsToReloadAll(tabs, true), [11, 13]);
+});
+
+test('tabIdsToReloadAll: 第2引数を省くと通常ウィンドウ扱い', () => {
+  const tabs = [{ id: 10 }, { id: 11, incognito: true }];
+
+  assert.deepEqual(tabIdsToReloadAll(tabs), [10]);
+});
+
 test('normalizeSelectedText: 改行を消さずにスペースへ畳む', () => {
   assert.equal(normalizeSelectedText('foo\nbar'), 'foo bar');
   assert.equal(normalizeSelectedText('foo\r\n\tbar   baz'), 'foo bar baz');

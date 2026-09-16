@@ -128,14 +128,33 @@ async function mergeWindows(activeTab) {
   // タブが全部抜けたウィンドウは Chrome が自動で閉じるので、こちらから閉じる処理は持たない。
 }
 
-async function reloadAllTabs() {
-  // windowType を normal に絞って、window.open() で開かれた OAuth や決済の
-  // ポップアップを踏み潰さないようにする。
+// 発動元がシークレットかどうか。アクティブタブが取れないときもコマンド自体は
+// 動かしたいので、ここでは諦めずウィンドウから引き、それも駄目なら通常側とみなす。
+async function resolveIncognitoContext(tabFromCommand) {
+  if (typeof tabFromCommand?.incognito === 'boolean') {
+    return tabFromCommand.incognito;
+  }
+
+  try {
+    const lastFocusedWindow = await chrome.windows.getLastFocused();
+    return lastFocusedWindow.incognito === true;
+  } catch (noWindow) {
+    return false;
+  }
+}
+
+async function reloadAllTabs(tabFromCommand) {
+  const incognito = await resolveIncognitoContext(tabFromCommand);
+
+  // windowType を normal に絞って、window.open() で開かれた OAuth や決済のポップアップと、
+  // インストール済み PWA のアプリウィンドウを踏み潰さないようにする。
   const tabs = await chrome.tabs.query({ windowType: 'normal' });
 
-  // reload() はリロードの開始で解決し、読み込み完了までは待たないので並列で投げてよい。
+  // 全件を並列で投げる。Chrome 側のローダが流量を制御するので、こちらで小分けにすると
+  // 遅くなるだけだった (200タブの実測: 全並列は発行480ms/完了750ms、10件ずつのバッチは
+  // 発行6.7s/完了1.25s)。「reload() が即座に解決するから」ではなく、この実測が根拠。
   await Promise.all(
-    tabIdsToReloadAll(tabs).map(async (tabId) => {
+    tabIdsToReloadAll(tabs, incognito).map(async (tabId) => {
       try {
         await chrome.tabs.reload(tabId);
       } catch (tabUnavailable) {
@@ -186,6 +205,14 @@ async function searchSelection(activeTab, openInForeground) {
 
 chrome.commands.onCommand.addListener(async (command, tabFromCommand) => {
   try {
+    // 一括リロードだけはアクティブタブに依存しないので、先に片付ける。
+    // 切り離した DevTools にフォーカスがあるなど、アクティブタブが取れない状況でも
+    // 動かしたいため、下の resolveActiveTab の門をくぐらせない。
+    if (command === COMMAND_RELOAD_ALL_TABS) {
+      await reloadAllTabs(tabFromCommand);
+      return;
+    }
+
     const activeTab = await resolveActiveTab(tabFromCommand);
     if (!activeTab) {
       return;
@@ -209,9 +236,6 @@ chrome.commands.onCommand.addListener(async (command, tabFromCommand) => {
         break;
       case COMMAND_SEARCH_BACKGROUND:
         await searchSelection(activeTab, false);
-        break;
-      case COMMAND_RELOAD_ALL_TABS:
-        await reloadAllTabs();
         break;
     }
   } catch (error) {

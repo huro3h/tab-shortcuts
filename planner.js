@@ -115,18 +115,25 @@ export function planMergeWindows(windows, tabs, groups, targetWindowId) {
 /**
  * 「すべてのタブをリロード」の対象。
  *
- * Chrome がメモリ節約のために破棄 (discarded) したタブは除く。次に開いたときに
- * どうせ読み直されるので、わざわざ起こすとメモリと回線を使うだけになる。
+ * 除外するもの:
+ *
+ * - **破棄 (discarded) されたタブ** … Chrome がメモリ節約のために捨てたタブ。次に開いた
+ *   ときにどうせ読み直されるので、わざわざ起こすとメモリと回線を使うだけになる。
+ * - **シークレット状態が発動元と違うタブ** … 通常ウィンドウで押したつもりが、
+ *   プライベートセッションの入力中フォームやログイン状態を吹き飛ばす事故を防ぐ。
+ *   拡張が「シークレットモードでの実行を許可」されている場合にだけ起こりうる。
+ *
  * ピン留めタブは含める (常駐させているダッシュボードこそ更新したいことが多い)。
+ * ポップアップやアプリウィンドウを外すのは呼び出し側の query で行う。
  *
- * ポップアップウィンドウを外すのは呼び出し側の query で行う。OAuth や決済の
- * ダイアログを踏み潰さないため。
- *
- * @param {Array<{id:number, discarded?:boolean}>} tabs
+ * @param {Array<{id:number, discarded?:boolean, incognito?:boolean}>} tabs
+ * @param {boolean} [incognito=false] 発動元のシークレット状態
  * @returns {number[]}
  */
-export function tabIdsToReloadAll(tabs) {
-  return tabs.filter((tab) => !tab.discarded).map((tab) => tab.id);
+export function tabIdsToReloadAll(tabs, incognito = false) {
+  return tabs
+    .filter((tab) => !tab.discarded && Boolean(tab.incognito) === incognito)
+    .map((tab) => tab.id);
 }
 
 const GOOGLE_SEARCH_BASE_URL = 'https://www.google.com/search?q=';
