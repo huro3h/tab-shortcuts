@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Tab Shortcuts",
+  "version": "1.0.0",
+  "description": "右クリックメニューにしかないタブ操作と選択テキスト検索を、キーボードショートカットで実行する。",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": ["tabs", "tabGroups", "activeTab", "scripting"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "commands": {
+    "01_close-other-tabs": {
+      "description": "他のタブを閉じる",
+      "suggested_key": { "default": "Alt+Shift+O" }
+    },
+    "02_close-right-tabs": {
+      "description": "右のタブを閉じる",
+      "suggested_key": { "default": "Alt+Shift+R" }
+    },
+    "03_toggle-pin": {
+      "description": "タブのピン留めを切り替える",
+      "suggested_key": { "default": "Alt+Shift+P" }
+    },
+    "04_merge-windows": {
+      "description": "すべてのウィンドウを現在のウィンドウに統合する"
+    },
+    "05_search-foreground": {
+      "description": "選択テキストをGoogleで検索する(前面タブ)",
+      "suggested_key": { "default": "Alt+S" }
+    },
+    "06_search-background": {
+      "description": "選択テキストをGoogleで検索する(背面タブ)"
+    }
+  }
+}
