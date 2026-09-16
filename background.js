@@ -1,10 +1,11 @@
 // service worker。chrome API の呼び出しだけを担当し、「何を閉じるか / 何を動かすか」の判断は
-// planner.js に任せる。コマンド名の 01_ 〜 04_ は chrome://extensions/shortcuts の表示順を
+// planner.js に任せる。コマンド名の 01_ 〜 07_ は chrome://extensions/shortcuts の表示順を
 // 決めるためのもので、意味がある (SKILL.md 参照)。
 import {
   tabIdsToCloseOthers,
   tabIdsToCloseRight,
   planMergeWindows,
+  tabIdsToReloadAll,
   pickSelectedText,
   buildGoogleSearchUrl,
 } from './planner.js';
@@ -15,6 +16,7 @@ const COMMAND_TOGGLE_PIN = '03_toggle-pin';
 const COMMAND_MERGE_WINDOWS = '04_merge-windows';
 const COMMAND_SEARCH_FOREGROUND = '05_search-foreground';
 const COMMAND_SEARCH_BACKGROUND = '06_search-background';
+const COMMAND_RELOAD_ALL_TABS = '07_reload-all-tabs';
 
 // onCommand はコマンド発火時のアクティブタブを第2引数でくれる。
 // 取れなかったときだけ、最後にフォーカスされたウィンドウから引き直す。
@@ -126,6 +128,23 @@ async function mergeWindows(activeTab) {
   // タブが全部抜けたウィンドウは Chrome が自動で閉じるので、こちらから閉じる処理は持たない。
 }
 
+async function reloadAllTabs() {
+  // windowType を normal に絞って、window.open() で開かれた OAuth や決済の
+  // ポップアップを踏み潰さないようにする。
+  const tabs = await chrome.tabs.query({ windowType: 'normal' });
+
+  // reload() はリロードの開始で解決し、読み込み完了までは待たないので並列で投げてよい。
+  await Promise.all(
+    tabIdsToReloadAll(tabs).map(async (tabId) => {
+      try {
+        await chrome.tabs.reload(tabId);
+      } catch (tabUnavailable) {
+        console.log(`[想定内] タブ(ID: ${tabId}) をリロードできませんでした。`);
+      }
+    })
+  );
+}
+
 // ページのコンテキストで動く。executeScript に渡すため外部を参照しない自己完結した関数にする。
 function readSelectionFromPage() {
   return window.getSelection()?.toString() ?? '';
@@ -190,6 +209,9 @@ chrome.commands.onCommand.addListener(async (command, tabFromCommand) => {
         break;
       case COMMAND_SEARCH_BACKGROUND:
         await searchSelection(activeTab, false);
+        break;
+      case COMMAND_RELOAD_ALL_TABS:
+        await reloadAllTabs();
         break;
     }
   } catch (error) {

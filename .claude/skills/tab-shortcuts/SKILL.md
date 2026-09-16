@@ -1,6 +1,6 @@
 ---
 name: tab-shortcuts
-description: Tab Shortcuts (タブ操作と選択テキスト検索にショートカットを与える Chrome 拡張) を改修・デバッグするときに使う。commands API の制約、統合処理でタブグループを壊さない理由、却下した実装案、実機での確認手順を記録している。
+description: Tab Shortcuts (タブ操作・ウィンドウ統合・一括リロード・選択テキスト検索にショートカットを与える Chrome 拡張) を改修・デバッグするときに使う。commands API の制約、統合処理でタブグループやピン留めを壊さない理由、却下した実装案、実機での確認手順を記録している。
 ---
 
 # Tab Shortcuts 開発メモ
@@ -10,7 +10,7 @@ description: Tab Shortcuts (タブ操作と選択テキスト検索にショー�
 | ファイル | 役割 |
 | --- | --- |
 | `manifest.json` | MV3。コマンド定義がこの拡張の仕様そのものなので、まずここを読む |
-| `planner.js` | **chrome API に触れない純粋関数だけ**。何を閉じ、何を動かし、何を検索するかを決める |
+| `planner.js` | **chrome API に触れない純粋関数だけ**。何を閉じ、何を動かし、何を読み直し、何を検索するかを決める |
 | `background.js` | service worker。`planner.js` が決めた結果を chrome API で実行するだけの薄い層 |
 | `test/planner.test.mjs` | `node --test test/planner.test.mjs`。Chrome を起動せずロジックを検証する |
 | `icons/icon.svg` | アイコンの原本。キーキャップ + シェブロンの線画1枚。PNG はここから書き出す |
@@ -21,7 +21,7 @@ description: Tab Shortcuts (タブ操作と選択テキスト検索にショー�
 
 ## commands API の制約 (ここを踏み外すと無言で壊れる)
 
-### コマンド名の `01_` 〜 `06_` プレフィックスは必須
+### コマンド名の `01_` 〜 `07_` プレフィックスは必須
 
 `chrome://extensions/shortcuts` の表示順は **manifest の記述順でも `description` 順でもなく
 キー名のソート順**で決まる。プレフィックスを外すと `01_close-other-tabs` が
@@ -39,7 +39,7 @@ description: Tab Shortcuts (タブ操作と選択テキスト検索にショー�
 | `02_close-right-tabs` | `Alt+Shift+R` |
 | `03_toggle-pin` | `Alt+Shift+P` |
 | `05_search-foreground` | `Alt+S` |
-| `04_merge-windows` / `06_search-background` | なし (枠が尽きたため) |
+| `04_merge-windows` / `06_search-background` / `07_reload-all-tabs` | なし (枠が尽きたため) |
 
 ### この拡張は「プリセットを付けない」方針の例外
 
@@ -92,6 +92,24 @@ Chrome ではピン留めタブをグループに入れられないので、1 �
 
 移動順は「元のウィンドウの並び順 → ウィンドウ内のタブ順」に固定している。
 `chrome.tabs.query({})` が返す順に依存させると統合後の並びが予測できなくなるため。
+
+### 一括リロードは破棄タブを起こさない
+
+`tabIdsToReloadAll()` が `discarded` なタブを外しているのは意図的。Chrome がメモリ節約で
+破棄したタブは次に開いたときにどうせ読み直されるので、まとめて起こすとメモリと回線を
+使うだけになる。タブを数百枚開く使い方だと効果が大きい。
+
+`chrome.tabs.query({ windowType: 'normal' })` でポップアップウィンドウを外しているのは、
+`window.open()` で開かれた OAuth や決済のダイアログをリロードで踏み潰さないため。
+統合処理と同じ考え方だが、あちらは planner 側、こちらは query 側で外している
+(リロードは「どのタブか」以外に決めることが無く、planner に持たせる判断が無いため)。
+
+なお **`chrome://` のタブはリロードしても例外を投げない**ことを実機で確認済み。
+選択テキスト検索の `executeScript` は内部ページで拒否されるが、`tabs.reload` は通る。
+同じ「内部ページ」でも API ごとに可否が違うので、一律に除外しないこと。
+
+通常のリロード (`bypassCache` 指定なし) にしている。スーパーリロードが欲しくなったら
+別コマンドとして足す方が、事故が少なく `chrome://extensions/shortcuts` でも選び分けやすい。
 
 ### ピン留めタブは閉じる対象から常に外す
 
@@ -154,7 +172,7 @@ Keyboard Shortcuts to Close Other/Right Tabs (`dkoadhojigekhckndaehenfbhcgfeepl`
 `chrome://extensions` から未パッケージ拡張として読み込んで確認する。
 
 1. `chrome://extensions/shortcuts` で `⌥⇧O` / `⌥⇧R` / `⌥⇧P` / `⌥S` が入っていること、
-   `04_merge-windows` と `06_search-background` が空欄であること
+   `04_merge-windows` / `06_search-background` / `07_reload-all-tabs` が空欄であること
 2. ピン留めタブを含むウィンドウで「他を閉じる」「右を閉じる」 → ピン留めが残る
 3. **統合**: 3ウィンドウ (うち1つにタブグループ、1つにピン留め) を作って実行
    → グループが解体されていないか、ピン留めがピン留めのまま入るか、
@@ -162,6 +180,8 @@ Keyboard Shortcuts to Close Other/Right Tabs (`dkoadhojigekhckndaehenfbhcgfeepl`
 4. シークレットウィンドウを開いた状態で統合 → 吸い込まれないこと
 5. 検索: 通常ページ / iframe 内 / 選択なし / `chrome://` の4パターン
    (`chrome://` では無反応が正しい。service worker のログに「[想定内]」が出る)
+6. **一括リロード**: 複数ウィンドウを開いて実行 → 全部読み直されること。
+   ポップアップウィンドウ (OAuth ダイアログなど) が巻き込まれないこと
 
 service worker のログは `chrome://extensions` の「Service Worker」リンクから見る。
 `[想定内]` プレフィックスのログは握りつぶした例外で、エラーではない。
@@ -170,4 +190,4 @@ service worker のログは `chrome://extensions` の「Service Worker」リン�
 
 `CHANGELOG.md` (Keep a Changelog + SemVer)。ユーザー向けの変更を入れるたびに
 `[Unreleased]` へ1行足す。リリース時は `manifest.json` の `version` を同じ番号に上げ、
-注釈付きタグを `v` なしの数字だけ (`1.1.0`) で打って `git push origin 1.1.0`。
+注釈付きタグを `v` なしの数字だけ (`1.2.0` のように) で打って `git push origin <タグ名>`。

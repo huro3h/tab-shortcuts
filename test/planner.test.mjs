@@ -7,6 +7,7 @@ import {
   tabIdsToCloseOthers,
   tabIdsToCloseRight,
   planMergeWindows,
+  tabIdsToReloadAll,
   normalizeSelectedText,
   pickSelectedText,
   buildGoogleSearchUrl,
@@ -206,6 +207,33 @@ test('planMergeWindows: ウィンドウ順 → タブ順で並べる', () => {
 
   // tabs 配列の順ではなく windows 配列の順 (2 → 3) に揃う
   assert.deepEqual(plan.plainTabIds, [20, 21, 30, 31]);
+});
+
+test('tabIdsToReloadAll: 通常のタブを全て対象にする', () => {
+  const tabs = [
+    { id: 10 },
+    { id: 11, pinned: true },
+    { id: 12 },
+  ];
+
+  assert.deepEqual(tabIdsToReloadAll(tabs), [10, 11, 12]);
+});
+
+test('tabIdsToReloadAll: 破棄されたタブは起こさない', () => {
+  const tabs = [
+    { id: 10 },
+    { id: 11, discarded: true },
+    { id: 12, discarded: false },
+    { id: 13, discarded: true },
+  ];
+
+  assert.deepEqual(tabIdsToReloadAll(tabs), [10, 12]);
+});
+
+test('tabIdsToReloadAll: 全部破棄されていれば空', () => {
+  const tabs = [{ id: 10, discarded: true }, { id: 11, discarded: true }];
+
+  assert.deepEqual(tabIdsToReloadAll(tabs), []);
 });
 
 test('normalizeSelectedText: 改行を消さずにスペースへ畳む', () => {

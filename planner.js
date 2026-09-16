@@ -112,6 +112,23 @@ export function planMergeWindows(windows, tabs, groups, targetWindowId) {
   return { targetWindowId, pinnedTabIds, groupIds, plainTabIds };
 }
 
+/**
+ * 「すべてのタブをリロード」の対象。
+ *
+ * Chrome がメモリ節約のために破棄 (discarded) したタブは除く。次に開いたときに
+ * どうせ読み直されるので、わざわざ起こすとメモリと回線を使うだけになる。
+ * ピン留めタブは含める (常駐させているダッシュボードこそ更新したいことが多い)。
+ *
+ * ポップアップウィンドウを外すのは呼び出し側の query で行う。OAuth や決済の
+ * ダイアログを踏み潰さないため。
+ *
+ * @param {Array<{id:number, discarded?:boolean}>} tabs
+ * @returns {number[]}
+ */
+export function tabIdsToReloadAll(tabs) {
+  return tabs.filter((tab) => !tab.discarded).map((tab) => tab.id);
+}
+
 const GOOGLE_SEARCH_BASE_URL = 'https://www.google.com/search?q=';
 
 /**
