@@ -21,7 +21,7 @@ description: Tab Shortcuts (タブ操作・ウィンドウ統合・一括リロ�
 
 ## commands API の制約 (ここを踏み外すと無言で壊れる)
 
-### コマンド名の `01_` 〜 `07_` プレフィックスは必須
+### コマンド名の `01_` 〜 `08_` プレフィックスは必須
 
 `chrome://extensions/shortcuts` の表示順は **manifest の記述順でも `description` 順でもなく
 キー名のソート順**で決まる。プレフィックスを外すと `01_close-other-tabs` が
@@ -39,7 +39,7 @@ description: Tab Shortcuts (タブ操作・ウィンドウ統合・一括リロ�
 | `02_close-right-tabs` | `Alt+Shift+R` |
 | `03_toggle-pin` | `Alt+Shift+P` |
 | `05_search-foreground` | `Alt+S` |
-| `04_merge-windows` / `06_search-background` / `07_reload-all-tabs` | なし (枠が尽きたため) |
+| `04_merge-windows` / `06_search-background` / `07_reload-all-tabs` / `08_toggle-mute` | なし (枠が尽きたため) |
 
 ### この拡張は「プリセットを付けない」方針の例外
 
@@ -142,6 +142,17 @@ Chrome ではピン留めタブをグループに入れられないので、1 �
 
 バッチ化の提案が出ても、この数字を取り直してから判断すること。
 
+### ミュートはサイト単位ではなくタブ単位
+
+Chrome の「サイトをミュート」は `chrome.contentSettings.sound` で再現できるが、見送った:
+
+- `contentSettings` 権限はインストール時に警告が出て、既存ユーザーは更新時に再承認を求められる
+- 拡張が書いた設定は「拡張機能が管理」になり Chrome の設定画面から上書きできず、
+  アンインストールでミュートがすべて消える
+
+`tabs.update(id, { muted })` は追加の権限が要らない。サイト単位が欲しくなったら、
+この2点を受け入れるかを先に決めること。
+
 ### ピン留めタブは閉じる対象から常に外す
 
 `tabIdsToCloseOthers` / `tabIdsToCloseRight` のどちらも `pinned` で足切りする。
@@ -203,7 +214,7 @@ Keyboard Shortcuts to Close Other/Right Tabs (`dkoadhojigekhckndaehenfbhcgfeepl`
 `chrome://extensions` から未パッケージ拡張として読み込んで確認する。
 
 1. `chrome://extensions/shortcuts` で `⌥⇧O` / `⌥⇧R` / `⌥⇧P` / `⌥S` が入っていること、
-   `04_merge-windows` / `06_search-background` / `07_reload-all-tabs` が空欄であること
+   `04_merge-windows` / `06_search-background` / `07_reload-all-tabs` / `08_toggle-mute` が空欄であること
 2. ピン留めタブを含むウィンドウで「他を閉じる」「右を閉じる」 → ピン留めが残る
 3. **統合**: 3ウィンドウ (うち1つにタブグループ、1つにピン留め) を作って実行
    → グループが解体されていないか、ピン留めがピン留めのまま入るか、

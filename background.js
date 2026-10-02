@@ -1,5 +1,5 @@
 // service worker。chrome API の呼び出しだけを担当し、「何を閉じるか / 何を動かすか」の判断は
-// planner.js に任せる。コマンド名の 01_ 〜 07_ は chrome://extensions/shortcuts の表示順を
+// planner.js に任せる。コマンド名の 01_ 〜 08_ は chrome://extensions/shortcuts の表示順を
 // 決めるためのもので、意味がある (SKILL.md 参照)。
 import {
   tabIdsToCloseOthers,
@@ -17,6 +17,7 @@ const COMMAND_MERGE_WINDOWS = '04_merge-windows';
 const COMMAND_SEARCH_FOREGROUND = '05_search-foreground';
 const COMMAND_SEARCH_BACKGROUND = '06_search-background';
 const COMMAND_RELOAD_ALL_TABS = '07_reload-all-tabs';
+const COMMAND_TOGGLE_MUTE = '08_toggle-mute';
 
 // onCommand はコマンド発火時のアクティブタブを第2引数でくれる。
 // 取れなかったときだけ、最後にフォーカスされたウィンドウから引き直す。
@@ -106,6 +107,12 @@ async function closeRightTabs(activeTab) {
 
 async function togglePin(activeTab) {
   await chrome.tabs.update(activeTab.id, { pinned: !activeTab.pinned });
+}
+
+// サイト単位の「サイトをミュート」ではなくタブ単位のミュート。サイト単位は contentSettings
+// 権限が要り、インストール時に警告が出るうえ Chrome 本体の設定と別管理になるため見送った。
+async function toggleMute(activeTab) {
+  await chrome.tabs.update(activeTab.id, { muted: !activeTab.mutedInfo?.muted });
 }
 
 async function mergeWindows(activeTab) {
@@ -227,6 +234,9 @@ chrome.commands.onCommand.addListener(async (command, tabFromCommand) => {
         break;
       case COMMAND_TOGGLE_PIN:
         await togglePin(activeTab);
+        break;
+      case COMMAND_TOGGLE_MUTE:
+        await toggleMute(activeTab);
         break;
       case COMMAND_MERGE_WINDOWS:
         await mergeWindows(activeTab);

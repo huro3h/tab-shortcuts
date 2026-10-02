@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Tab Shortcuts",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "右クリックメニューにしかないタブ操作と選択テキスト検索を、キーボードショートカットで実行する。",
   "icons": {
     "16": "icons/icon16.png",
@@ -39,6 +39,9 @@
     },
     "07_reload-all-tabs": {
       "description": "すべてのウィンドウのタブをリロードする"
+    },
+    "08_toggle-mute": {
+      "description": "タブのミュートを切り替える"
     }
   }
 }
