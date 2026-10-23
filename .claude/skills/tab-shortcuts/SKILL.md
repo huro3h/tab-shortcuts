@@ -12,6 +12,8 @@ description: Tab Shortcuts (タブ操作・ウィンドウ統合・一括リロ�
 | `manifest.json` | MV3。コマンド定義がこの拡張の仕様そのものなので、まずここを読む |
 | `planner.js` | **chrome API に触れない純粋関数だけ**。何を閉じ、何を動かし、何を読み直し、何を検索するかを決める |
 | `background.js` | service worker。`planner.js` が決めた結果を chrome API で実行するだけの薄い層 |
+| `options.html` / `options.js` / `options.css` | オプション画面。`chrome://extensions` の詳細に埋め込み表示 (`open_in_tab: false`)。変更した瞬間に保存 |
+| `offscreen.html` / `offscreen.js` | 検索語をクリップボードに書くためだけの offscreen ドキュメント |
 | `test/planner.test.mjs` | `node --test test/planner.test.mjs`。Chrome を起動せずロジックを検証する |
 | `icons/icon.svg` | アイコンの原本。キーキャップ + シェブロンの線画1枚。PNG はここから書き出す |
 
@@ -173,6 +175,24 @@ Chrome 本体の右クリックメニューと同じ挙動で、`pinned-tab-lock
 `NEW_TAB` / `NEW_WINDOW` の3つしかなく、**背面タブで開く指定ができない**。
 前面/背面の出し分けが要件なので、`chrome.tabs.create({ active })` を自前で呼んでいる。
 その代償として検索エンジンは Google 固定になる (デフォルト検索エンジンには追従しない)。
+
+### 検索語のクリップボードコピーは offscreen 経由
+
+設定 `copySelectionOnSearch` (既定 ON、`chrome.storage.sync`)。既定値と型の補正は
+`planner.js` の `DEFAULT_SETTINGS` / `resolveSettings()` に置き、オプション画面と
+background.js の両方がそれを使う。
+
+- **service worker にはクリップボード API が無い**ので、`chrome.offscreen` (reason `CLIPBOARD`)
+  で文書を作り、`textarea` + `document.execCommand('copy')` で書く。
+  offscreen ドキュメントはフォーカスを持てず `navigator.clipboard.writeText` は失敗するため、
+  非推奨の `execCommand` をあえて使っている (Chrome 公式サンプルと同じ)。
+- ページ側に注入してコピーする案は採らなかった。サイトの `copy` イベントハンドラに
+  書き換えられうるうえ、ページにユーザーアクティベーションが無く失敗しやすい。
+- offscreen は拡張につき1つしか作れないので、コピーは `clipboardQueue` で直列化し、
+  毎回作って閉じる (常駐させない)。連打しても作成が衝突しないことを実機で確認済み。
+- コピーはタブを開いた**後**。失敗してもログだけ残し、検索は成立させる。
+- 選択が空のときはコピーもしない (クリップボードを空文字で潰さない)。
+- コピーするのは検索語と同じ正規化済み文字列 (改行は畳まれる)。
 
 ### 元にした拡張から直した点
 

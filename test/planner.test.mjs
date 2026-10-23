@@ -11,6 +11,8 @@ import {
   normalizeSelectedText,
   pickSelectedText,
   buildGoogleSearchUrl,
+  DEFAULT_SETTINGS,
+  resolveSettings,
 } from '../planner.js';
 
 // index は配列順から自動で振る。テスト側で連番を書き間違えないようにするため。
@@ -312,4 +314,28 @@ test('buildGoogleSearchUrl: 選択が空なら null (空検索タブを開かな
   assert.equal(buildGoogleSearchUrl(''), null);
   assert.equal(buildGoogleSearchUrl('  \n  '), null);
   assert.equal(buildGoogleSearchUrl(undefined), null);
+});
+
+test('resolveSettings: 未保存ならクリップボードへのコピーは ON', () => {
+  assert.deepEqual(resolveSettings({}), { copySelectionOnSearch: true });
+  assert.deepEqual(resolveSettings(undefined), { copySelectionOnSearch: true });
+  assert.equal(DEFAULT_SETTINGS.copySelectionOnSearch, true);
+});
+
+test('resolveSettings: 保存済みの真偽値はそのまま使う', () => {
+  assert.deepEqual(resolveSettings({ copySelectionOnSearch: false }), {
+    copySelectionOnSearch: false,
+  });
+  assert.deepEqual(resolveSettings({ copySelectionOnSearch: true }), {
+    copySelectionOnSearch: true,
+  });
+});
+
+test('resolveSettings: 真偽値でない値は既定値に戻す', () => {
+  assert.deepEqual(resolveSettings({ copySelectionOnSearch: 'false' }), {
+    copySelectionOnSearch: true,
+  });
+  assert.deepEqual(resolveSettings({ copySelectionOnSearch: null }), {
+    copySelectionOnSearch: true,
+  });
 });

@@ -1,0 +1,54 @@
+/* chrome://extensions の詳細画面に埋め込まれるので、Chrome 本体の明暗に合わせる */
+:root {
+  color-scheme: light dark;
+  --fg: #1f1f1f;
+  --muted: #5f6368;
+  --accent: #1a73e8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e3e3e3;
+    --muted: #9aa0a6;
+    --accent: #8ab4f8;
+  }
+}
+
+body {
+  margin: 0;
+  padding: 4px 4px 8px;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  color: var(--fg);
+}
+
+h2 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.check input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.hint {
+  margin: 8px 0 0 24px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.status {
+  min-height: 1.4em;
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--accent);
+}

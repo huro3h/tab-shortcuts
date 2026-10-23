@@ -8,6 +8,8 @@ import {
   tabIdsToReloadAll,
   pickSelectedText,
   buildGoogleSearchUrl,
+  DEFAULT_SETTINGS,
+  resolveSettings,
 } from './planner.js';
 
 const COMMAND_CLOSE_OTHER_TABS = '01_close-other-tabs';
@@ -193,10 +195,61 @@ async function readSelectedText(activeTab) {
   }
 }
 
+async function loadSettings() {
+  return resolveSettings(await chrome.storage.sync.get(DEFAULT_SETTINGS));
+}
+
+// offscreen ドキュメントは拡張につき1つしか作れない。検索を素早く連打されると
+// 作成が重なって2つ目が失敗するので、コピーは1件ずつ順番に流す。
+let clipboardQueue = Promise.resolve();
+
+// service worker には DOM もクリップボード API も無いので、offscreen ドキュメントに
+// 書き込ませる。使い終わったら閉じて、常駐させない。
+async function writeToClipboardViaOffscreen(text) {
+  const existing = await chrome.runtime.getContexts({
+    contextTypes: ['OFFSCREEN_DOCUMENT'],
+  });
+  if (existing.length === 0) {
+    await chrome.offscreen.createDocument({
+      url: 'offscreen.html',
+      reasons: ['CLIPBOARD'],
+      justification: '選択テキスト検索の検索語をクリップボードにコピーするため',
+    });
+  }
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      target: 'offscreen',
+      type: 'copy-to-clipboard',
+      text,
+    });
+    if (!response?.copied) {
+      console.log('[想定内] クリップボードへのコピーが拒否されました。');
+    }
+  } finally {
+    await chrome.offscreen.closeDocument();
+  }
+}
+
+function copyToClipboard(text) {
+  clipboardQueue = clipboardQueue
+    .then(() => writeToClipboardViaOffscreen(text))
+    .catch((error) => {
+      // コピーに失敗しても検索自体は済んでいるので、ログだけ残して握りつぶす
+      console.error('クリップボードへのコピーに失敗しました:', error);
+    });
+  return clipboardQueue;
+}
+
 async function searchSelection(activeTab, openInForeground) {
-  const searchUrl = buildGoogleSearchUrl(await readSelectedText(activeTab));
+  const [selectedText, settings] = await Promise.all([
+    readSelectedText(activeTab),
+    loadSettings(),
+  ]);
+
+  const searchUrl = buildGoogleSearchUrl(selectedText);
   if (!searchUrl) {
-    // 何も選択されていないときに空の検索タブを開かない
+    // 何も選択されていないときに空の検索タブを開かない (クリップボードも上書きしない)
     return;
   }
 
@@ -208,6 +261,11 @@ async function searchSelection(activeTab, openInForeground) {
     openerTabId: activeTab.id,
     windowId: activeTab.windowId,
   });
+
+  // タブを開くのを待たせないよう、コピーは検索のあとに回す
+  if (settings.copySelectionOnSearch) {
+    await copyToClipboard(selectedText);
+  }
 }
 
 chrome.commands.onCommand.addListener(async (command, tabFromCommand) => {

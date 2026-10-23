@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tab Shortcuts の設定</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main>
+      <section>
+        <h2>選択テキスト検索</h2>
+        <label class="check">
+          <input type="checkbox" id="copySelectionOnSearch" />
+          <span>検索するときに、選択テキストをクリップボードにもコピーする</span>
+        </label>
+        <p class="hint">
+          前面タブ・背面タブのどちらの検索にも効きます。コピーされるのは検索語と同じ文字列
+          (改行や連続した空白はスペース1つにまとめたもの) です。
+        </p>
+      </section>
+      <p class="status" id="status" aria-live="polite"></p>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

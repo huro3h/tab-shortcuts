@@ -193,3 +193,30 @@ export function buildGoogleSearchUrl(searchText) {
 
   return GOOGLE_SEARCH_BASE_URL + encodeURIComponent(normalized);
 }
+
+/**
+ * オプション画面で変えられる設定の既定値。
+ * chrome.storage.sync.get にそのまま渡し、未保存の項目をこの値で埋めてもらう。
+ */
+export const DEFAULT_SETTINGS = Object.freeze({
+  // 選択テキスト検索のとき、検索語をクリップボードにもコピーする
+  copySelectionOnSearch: true,
+});
+
+/**
+ * storage から読んだ値を設定として使える形に整える。
+ * 型の合わない値 (手で書き換えられた・将来の形式変更など) は既定値に戻す。
+ *
+ * @param {object} [stored]
+ * @returns {{copySelectionOnSearch: boolean}}
+ */
+export function resolveSettings(stored) {
+  const copySelectionOnSearch = stored?.copySelectionOnSearch;
+
+  return {
+    copySelectionOnSearch:
+      typeof copySelectionOnSearch === 'boolean'
+        ? copySelectionOnSearch
+        : DEFAULT_SETTINGS.copySelectionOnSearch,
+  };
+}
