@@ -1,5 +1,5 @@
 // service worker。chrome API の呼び出しだけを担当し、「何を閉じるか / 何を動かすか」の判断は
-// planner.js に任せる。コマンド名の 01_ 〜 10_ は chrome://extensions/shortcuts の表示順を
+// planner.js に任せる。コマンド名の 01_ 〜 12_ は chrome://extensions/shortcuts の表示順を
 // 決めるためのもので、意味がある (SKILL.md 参照)。
 import {
   tabIdsToCloseOthers,
@@ -23,6 +23,10 @@ const COMMAND_RELOAD_ALL_TABS = '07_reload-all-tabs';
 const COMMAND_TOGGLE_MUTE = '08_toggle-mute';
 const COMMAND_NEXT_TAB = '09_next-tab';
 const COMMAND_PREVIOUS_TAB = '10_previous-tab';
+// commands は1コマンドにキーを1つしか割り当てられないので、2つ目のキー用に同じ動きの
+// コマンドを別名で持つ。
+const COMMAND_NEXT_TAB_ALT = '11_next-tab-alt';
+const COMMAND_PREVIOUS_TAB_ALT = '12_previous-tab-alt';
 
 // onCommand はコマンド発火時のアクティブタブを第2引数でくれる。
 // 取れなかったときだけ、最後にフォーカスされたウィンドウから引き直す。
@@ -319,9 +323,11 @@ chrome.commands.onCommand.addListener(async (command, tabFromCommand) => {
         await toggleMute(activeTab);
         break;
       case COMMAND_NEXT_TAB:
+      case COMMAND_NEXT_TAB_ALT:
         await activateTabBeside(activeTab, 1);
         break;
       case COMMAND_PREVIOUS_TAB:
+      case COMMAND_PREVIOUS_TAB_ALT:
         await activateTabBeside(activeTab, -1);
         break;
       case COMMAND_MERGE_WINDOWS:
