@@ -1,9 +1,10 @@
 // service worker。chrome API の呼び出しだけを担当し、「何を閉じるか / 何を動かすか」の判断は
-// planner.js に任せる。コマンド名の 01_ 〜 08_ は chrome://extensions/shortcuts の表示順を
+// planner.js に任せる。コマンド名の 01_ 〜 10_ は chrome://extensions/shortcuts の表示順を
 // 決めるためのもので、意味がある (SKILL.md 参照)。
 import {
   tabIdsToCloseOthers,
   tabIdsToCloseRight,
+  tabIdToActivateBeside,
   planMergeWindows,
   tabIdsToReloadAll,
   pickSelectedText,
@@ -20,6 +21,8 @@ const COMMAND_SEARCH_FOREGROUND = '05_search-foreground';
 const COMMAND_SEARCH_BACKGROUND = '06_search-background';
 const COMMAND_RELOAD_ALL_TABS = '07_reload-all-tabs';
 const COMMAND_TOGGLE_MUTE = '08_toggle-mute';
+const COMMAND_NEXT_TAB = '09_next-tab';
+const COMMAND_PREVIOUS_TAB = '10_previous-tab';
 
 // onCommand はコマンド発火時のアクティブタブを第2引数でくれる。
 // 取れなかったときだけ、最後にフォーカスされたウィンドウから引き直す。
@@ -115,6 +118,25 @@ async function togglePin(activeTab) {
 // 権限が要り、インストール時に警告が出るうえ Chrome 本体の設定と別管理になるため見送った。
 async function toggleMute(activeTab) {
   await chrome.tabs.update(activeTab.id, { muted: !activeTab.mutedInfo?.muted });
+}
+
+async function activateTabBeside(activeTab, direction) {
+  const [tabs, collapsedGroups] = await Promise.all([
+    chrome.tabs.query({ windowId: activeTab.windowId }),
+    chrome.tabGroups.query({ windowId: activeTab.windowId, collapsed: true }),
+  ]);
+
+  const tabId = tabIdToActivateBeside(
+    tabs,
+    activeTab.id,
+    direction,
+    collapsedGroups.map((group) => group.id)
+  );
+  if (tabId === null) {
+    return;
+  }
+
+  await chrome.tabs.update(tabId, { active: true });
 }
 
 async function mergeWindows(activeTab) {
@@ -295,6 +317,12 @@ chrome.commands.onCommand.addListener(async (command, tabFromCommand) => {
         break;
       case COMMAND_TOGGLE_MUTE:
         await toggleMute(activeTab);
+        break;
+      case COMMAND_NEXT_TAB:
+        await activateTabBeside(activeTab, 1);
+        break;
+      case COMMAND_PREVIOUS_TAB:
+        await activateTabBeside(activeTab, -1);
         break;
       case COMMAND_MERGE_WINDOWS:
         await mergeWindows(activeTab);

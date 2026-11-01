@@ -6,6 +6,7 @@ import {
   TAB_GROUP_ID_NONE,
   tabIdsToCloseOthers,
   tabIdsToCloseRight,
+  tabIdToActivateBeside,
   planMergeWindows,
   tabIdsToReloadAll,
   normalizeSelectedText,
@@ -86,6 +87,56 @@ test('tabIdsToCloseRight: アクティブタブが見つからなければ空', 
   const tabs = tabsOf(1, [{ id: 10 }, { id: 11 }]);
 
   assert.deepEqual(tabIdsToCloseRight(tabs, 99), []);
+});
+
+test('tabIdToActivateBeside: 右・左の隣のタブを返す', () => {
+  const tabs = tabsOf(1, [{ id: 10 }, { id: 11 }, { id: 12 }]);
+
+  assert.equal(tabIdToActivateBeside(tabs, 11, 1), 12);
+  assert.equal(tabIdToActivateBeside(tabs, 11, -1), 10);
+});
+
+test('tabIdToActivateBeside: 端では反対の端へ回り込む', () => {
+  const tabs = tabsOf(1, [{ id: 10 }, { id: 11 }, { id: 12 }]);
+
+  assert.equal(tabIdToActivateBeside(tabs, 12, 1), 10);
+  assert.equal(tabIdToActivateBeside(tabs, 10, -1), 12);
+});
+
+test('tabIdToActivateBeside: タブの並びは配列順ではなく index で決める', () => {
+  const tabs = tabsOf(1, [{ id: 10 }, { id: 11 }, { id: 12 }]).reverse();
+
+  assert.equal(tabIdToActivateBeside(tabs, 10, 1), 11);
+});
+
+test('tabIdToActivateBeside: 折りたたまれたグループのタブは飛ばす', () => {
+  const tabs = tabsOf(1, [
+    { id: 10 },
+    { id: 11, groupId: 5 },
+    { id: 12, groupId: 5 },
+    { id: 13, groupId: 6 },
+  ]);
+
+  assert.equal(tabIdToActivateBeside(tabs, 10, 1, [5]), 13);
+  assert.equal(tabIdToActivateBeside(tabs, 13, -1, [5]), 10);
+  // 展開されているグループには入る
+  assert.equal(tabIdToActivateBeside(tabs, 12, 1, [6]), 10);
+});
+
+test('tabIdToActivateBeside: アクティブタブが折りたたみグループ内でも基準にできる', () => {
+  const tabs = tabsOf(1, [{ id: 10 }, { id: 11, groupId: 5 }, { id: 12, groupId: 5 }, { id: 13 }]);
+
+  assert.equal(tabIdToActivateBeside(tabs, 11, 1, [5]), 13);
+  assert.equal(tabIdToActivateBeside(tabs, 11, -1, [5]), 10);
+});
+
+test('tabIdToActivateBeside: 移動先が無ければ null', () => {
+  assert.equal(tabIdToActivateBeside(tabsOf(1, [{ id: 10 }]), 10, 1), null);
+  assert.equal(
+    tabIdToActivateBeside(tabsOf(1, [{ id: 10 }, { id: 11, groupId: 5 }]), 10, 1, [5]),
+    null
+  );
+  assert.equal(tabIdToActivateBeside(tabsOf(1, [{ id: 10 }, { id: 11 }]), 99, 1), null);
 });
 
 test('planMergeWindows: 他ウィンドウの通常タブを集める', () => {

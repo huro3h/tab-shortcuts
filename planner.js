@@ -39,6 +39,35 @@ export function tabIdsToCloseRight(tabs, activeTabId) {
 }
 
 /**
+ * 「右/左のタブへ移動」の移動先。端では反対の端へ回り込む。
+ *
+ * 折りたたまれたタブグループのタブは飛ばす。Chrome 本体の ⌃Tab と同じ挙動で、
+ * これを飛ばさないと、通り過ぎるだけのつもりがグループを勝手に展開してしまう。
+ *
+ * @param {Array<{id:number, index:number, groupId?:number}>} tabs 対象ウィンドウのタブ
+ * @param {number} activeTabId
+ * @param {1|-1} direction 1 で右、-1 で左
+ * @param {number[]} [collapsedGroupIds=[]] 折りたたまれているグループの ID
+ * @returns {number|null} 移動先が無ければ null
+ */
+export function tabIdToActivateBeside(tabs, activeTabId, direction, collapsedGroupIds = []) {
+  const collapsed = new Set(collapsedGroupIds);
+  // アクティブタブ自身は折りたたみグループに属していても候補に残す (位置の基準にするため)
+  const candidates = tabs
+    .filter((tab) => tab.id === activeTabId || !collapsed.has(tab.groupId))
+    .sort((a, b) => a.index - b.index);
+
+  const activePosition = candidates.findIndex((tab) => tab.id === activeTabId);
+  if (activePosition === -1 || candidates.length < 2) {
+    return null;
+  }
+
+  const nextPosition =
+    (activePosition + direction + candidates.length) % candidates.length;
+  return candidates[nextPosition].id;
+}
+
+/**
  * 統合の対象にしてよいウィンドウか。
  *
  * - `normal` 以外 … window.open() で切り出されたポップアップやアプリウィンドウを吸い込まない

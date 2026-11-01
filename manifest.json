@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Tab Shortcuts",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "右クリックメニューにしかないタブ操作と選択テキスト検索を、キーボードショートカットで実行する。",
   "icons": {
     "16": "icons/icon16.png",
@@ -54,6 +54,12 @@
     },
     "08_toggle-mute": {
       "description": "タブのミュートを切り替える"
+    },
+    "09_next-tab": {
+      "description": "右のタブへ移動する(右端では左端へ)"
+    },
+    "10_previous-tab": {
+      "description": "左のタブへ移動する(左端では右端へ)"
     }
   }
 }
