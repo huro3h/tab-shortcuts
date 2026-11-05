@@ -216,7 +216,7 @@ async function readSelectedText(activeTab) {
     return pickSelectedText(injectionResults);
   } catch (injectionBlocked) {
     // chrome:// / Chrome ウェブストア / PDF ビューア など、拡張が注入できないページ
-    console.log('[想定内] このページからは選択テキストを取得できません。');
+    console.log('[想定内] このページからは選択テキストを取得できません。', injectionBlocked.message);
     return '';
   }
 }
