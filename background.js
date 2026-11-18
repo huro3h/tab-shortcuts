@@ -211,6 +211,10 @@ async function readSelectedText(activeTab) {
     const injectionResults = await chrome.scripting.executeScript({
       // iframe 内の選択も拾う。フレームごとに結果が返るので pickSelectedText で絞る。
       target: { tabId: activeTab.id, allFrames: true },
+      // 既定では各フレームの document_idle まで待つが、<iframe src="javascript:void(false)">
+      // のように idle にならないフレームがあると永遠に返らない。選択を読むだけなので
+      // 読み込み完了を待つ必要はない。
+      injectImmediately: true,
       func: readSelectionFromPage,
     });
     return pickSelectedText(injectionResults);

@@ -204,6 +204,27 @@ background.js の両方がそれを使う。
 - 選択が空のときはコピーもしない (クリップボードを空文字で潰さない)。
 - コピーするのは検索語と同じ正規化済み文字列 (改行は畳まれる)。
 
+### 選択テキストの注入は `injectImmediately: true` (消さないこと)
+
+`executeScript` は既定で**各フレームが `document_idle` になるまで待ち、全フレームそろうまで
+解決しない**。`document_idle` にならないフレームが1つでもあると、Promise が返らないまま
+検索タブも開かない。エラーもログも出ないので、ユーザーからは「押しても何も起きない」と見え、
+リロードでフレームが破棄されたときに初めて検索タブが開く。
+
+全ページに `<iframe src="javascript:void(false)">` を埋め込んでいるサイトがこれに当たる
+(2026-11-19 に Brave Nightly で実測。フレームごとに注入して、待たされるのはこの1つだけだと確かめた)。
+`javascript:` URL は実際の読み込みを起こさないので、最初の `about:blank` のまま idle にならない。
+ページ内から見ると `readyState` は `complete` なので、`document.readyState` を見ても切り分けられない。
+
+| 該当サイトのトップ | 結果 |
+| --- | --- |
+| `allFrames: true` (既定の注入タイミング) | 5秒待っても返らない |
+| `allFrames: true` + `injectImmediately: true` | 2ms で全フレーム分返る |
+
+選択を読むだけなので、読み込み完了を待つ理由はない。最初は「画面外の YouTube 埋め込みの
+遅延読み込みが原因」と見立てたが外れだった。同じ症状が出たら、まずフレームごとに
+`frameIds: [id]` で注入し、タイムアウトするフレームを探すと早い。
+
 ### 元にした拡張から直した点
 
 Shortcut keys for selection search (`emceciddhgnjkmjmpjoahmdhibmifohp`) の実装を読んで、
