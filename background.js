@@ -1,5 +1,5 @@
 // service worker。chrome API の呼び出しだけを担当し、「何を閉じるか / 何を動かすか」の判断は
-// planner.js に任せる。コマンド名の 01_ 〜 12_ は chrome://extensions/shortcuts の表示順を
+// planner.js に任せる。コマンド名の 01_ 〜 13_ は chrome://extensions/shortcuts の表示順を
 // 決めるためのもので、意味がある (SKILL.md 参照)。
 import {
   tabIdsToCloseOthers,
@@ -19,14 +19,15 @@ const COMMAND_TOGGLE_PIN = '03_toggle-pin';
 const COMMAND_MERGE_WINDOWS = '04_merge-windows';
 const COMMAND_SEARCH_FOREGROUND = '05_search-foreground';
 const COMMAND_SEARCH_BACKGROUND = '06_search-background';
-const COMMAND_RELOAD_ALL_TABS = '07_reload-all-tabs';
-const COMMAND_TOGGLE_MUTE = '08_toggle-mute';
-const COMMAND_NEXT_TAB = '09_next-tab';
-const COMMAND_PREVIOUS_TAB = '10_previous-tab';
+const COMMAND_RELOAD_TAB = '07_reload-tab';
+const COMMAND_RELOAD_ALL_TABS = '08_reload-all-tabs';
+const COMMAND_TOGGLE_MUTE = '09_toggle-mute';
+const COMMAND_NEXT_TAB = '10_next-tab';
+const COMMAND_PREVIOUS_TAB = '11_previous-tab';
 // commands は1コマンドにキーを1つしか割り当てられないので、2つ目のキー用に同じ動きの
 // コマンドを別名で持つ。
-const COMMAND_NEXT_TAB_ALT = '11_next-tab-alt';
-const COMMAND_PREVIOUS_TAB_ALT = '12_previous-tab-alt';
+const COMMAND_NEXT_TAB_ALT = '12_next-tab-alt';
+const COMMAND_PREVIOUS_TAB_ALT = '13_previous-tab-alt';
 
 // onCommand はコマンド発火時のアクティブタブを第2引数でくれる。
 // 取れなかったときだけ、最後にフォーカスされたウィンドウから引き直す。
@@ -122,6 +123,11 @@ async function togglePin(activeTab) {
 // 権限が要り、インストール時に警告が出るうえ Chrome 本体の設定と別管理になるため見送った。
 async function toggleMute(activeTab) {
   await chrome.tabs.update(activeTab.id, { muted: !activeTab.mutedInfo?.muted });
+}
+
+// 一括リロードと同じく通常のリロード (bypassCache なし)。
+async function reloadTab(activeTab) {
+  await chrome.tabs.reload(activeTab.id);
 }
 
 async function activateTabBeside(activeTab, direction) {
@@ -325,6 +331,9 @@ chrome.commands.onCommand.addListener(async (command, tabFromCommand) => {
         break;
       case COMMAND_TOGGLE_MUTE:
         await toggleMute(activeTab);
+        break;
+      case COMMAND_RELOAD_TAB:
+        await reloadTab(activeTab);
         break;
       case COMMAND_NEXT_TAB:
       case COMMAND_NEXT_TAB_ALT:

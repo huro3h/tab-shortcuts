@@ -23,12 +23,16 @@ description: Tab Shortcuts (タブ操作・ウィンドウ統合・一括リロ�
 
 ## commands API の制約 (ここを踏み外すと無言で壊れる)
 
-### コマンド名の `01_` 〜 `12_` プレフィックスは必須
+### コマンド名の `01_` 〜 `13_` プレフィックスは必須
 
 `chrome://extensions/shortcuts` の表示順は **manifest の記述順でも `description` 順でもなく
 キー名のソート順**で決まる。プレフィックスを外すと `01_close-other-tabs` が
 `06_search-background` より後に並ぶ、といった意図しない順序になる
-(`yt-quick-filter` で踏んだ落とし穴)。コマンドを追加するときは連番を続けること。
+(`yt-quick-filter` で踏んだ落とし穴)。コマンドを追加するときは連番を続けること (次は `14_`)。
+
+**途中に差し込むために番号を振り直すと、名前が変わったコマンドはユーザーが設定したキーが消える**
+(Chrome は割り当てをコマンド名で覚えている)。2026-11-22 に `07_reload-tab` を一括リロードの前に
+入れたときは、ユーザーの判断で 07_〜12_ を繰り下げ、設定し直してもらう方を選んだ。
 
 ### `suggested_key` は拡張あたり最大4つ
 
@@ -41,7 +45,7 @@ description: Tab Shortcuts (タブ操作・ウィンドウ統合・一括リロ�
 | `02_close-right-tabs` | `Alt+Shift+R` |
 | `03_toggle-pin` | `Alt+Shift+P` |
 | `05_search-foreground` | `Alt+S` |
-| `04_merge-windows` / `06_search-background` / `07_reload-all-tabs` / `08_toggle-mute` / `09_next-tab` / `10_previous-tab` / `11_next-tab-alt` / `12_previous-tab-alt` | なし (枠が尽きたため) |
+| `04_merge-windows` / `06_search-background` / `07_reload-tab` / `08_reload-all-tabs` / `09_toggle-mute` / `10_next-tab` / `11_previous-tab` / `12_next-tab-alt` / `13_previous-tab-alt` | なし (枠が尽きたため) |
 
 ### この拡張は「プリセットを付けない」方針の例外
 
@@ -128,6 +132,9 @@ Chrome ではピン留めタブをグループに入れられないので、1 �
 選択テキスト検索の `executeScript` は内部ページで拒否されるが、`tabs.reload` は通る。
 同じ「内部ページ」でも API ごとに可否が違うので、一律に除外しないこと。
 
+`07_reload-tab` (アクティブタブだけのリロード) はアクティブタブを使うので門の内側に置いている。
+条件分岐が無く `tabs.reload` を呼ぶだけなので planner.js には足していない。
+
 通常のリロード (`bypassCache` 指定なし) にしている。スーパーリロードが欲しくなったら
 別コマンドとして足す方が、事故が少なく `chrome://extensions/shortcuts` でも選び分けやすい。
 
@@ -161,9 +168,9 @@ Chrome の「サイトをミュート」は `chrome.contentSettings.sound` で�
 タブを候補から外す。Chrome 本体の `⌃Tab` と同じ挙動で、外さないと通過するだけで
 グループが展開されてしまう。アクティブタブ自身が折りたたみグループ内にあるとき
 (タブ検索などで直接開いた場合) も、位置の基準としては残す。
-`11_next-tab-alt` / `12_previous-tab-alt` は 09_ / 10_ と同じ処理を呼ぶだけの別名コマンド。
+`12_next-tab-alt` / `13_previous-tab-alt` は 10_ / 11_ と同じ処理を呼ぶだけの別名コマンド。
 Chrome の commands は1コマンドにキーを1つしか持てないため、2つ目のキーを使いたいという
-ユーザー要望でこの形にした。新しい連番は `13_` から続ける。
+ユーザー要望でこの形にした。
 
 ### ピン留めタブは閉じる対象から常に外す
 
@@ -265,7 +272,7 @@ Keyboard Shortcuts to Close Other/Right Tabs (`dkoadhojigekhckndaehenfbhcgfeepl`
 `chrome://extensions` から未パッケージ拡張として読み込んで確認する。
 
 1. `chrome://extensions/shortcuts` で `⌥⇧O` / `⌥⇧R` / `⌥⇧P` / `⌥S` が入っていること、
-   `04_merge-windows` / `06_search-background` / `07_reload-all-tabs` / `08_toggle-mute` / `09_next-tab` 〜 `12_previous-tab-alt` が空欄であること
+   `04_merge-windows` / `06_search-background` / `07_reload-tab` 〜 `13_previous-tab-alt` が空欄であること
 2. ピン留めタブを含むウィンドウで「他を閉じる」「右を閉じる」 → ピン留めが残る
 3. **統合**: 3ウィンドウ (うち1つにタブグループ、1つにピン留め) を作って実行
    → グループが解体されていないか、ピン留めがピン留めのまま入るか、

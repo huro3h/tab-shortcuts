@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Tab Shortcuts",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "タブを閉じる・移動する・ウィンドウを統合する・まとめてリロードするなどのタブ操作と選択テキスト検索を、キーボードショートカットで実行する。",
   "icons": {
     "16": "icons/icon16.png",
@@ -49,22 +49,25 @@
     "06_search-background": {
       "description": "選択テキストをGoogleで検索する(背面タブ)"
     },
-    "07_reload-all-tabs": {
+    "07_reload-tab": {
+      "description": "タブをリロードする"
+    },
+    "08_reload-all-tabs": {
       "description": "すべてのウィンドウのタブをリロードする"
     },
-    "08_toggle-mute": {
+    "09_toggle-mute": {
       "description": "タブのミュートを切り替える"
     },
-    "09_next-tab": {
+    "10_next-tab": {
       "description": "右のタブへ移動する(右端では左端へ)"
     },
-    "10_previous-tab": {
+    "11_previous-tab": {
       "description": "左のタブへ移動する(左端では右端へ)"
     },
-    "11_next-tab-alt": {
+    "12_next-tab-alt": {
       "description": "右のタブへ移動する(2つ目のキー)"
     },
-    "12_previous-tab-alt": {
+    "13_previous-tab-alt": {
       "description": "左のタブへ移動する(2つ目のキー)"
     }
   }
