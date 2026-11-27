@@ -1,32 +1,11 @@
-// chrome API に触れない純粋関数だけを置く。ここに判断を寄せることで Node から直接テストできる。
-// background.js は「ここが決めた結果を実行するだけ」に保つ。
-
-// chrome.tabGroups.TAB_GROUP_ID_NONE と同値。service worker 以外からも参照するため定数で持つ。
 export const TAB_GROUP_ID_NONE = -1;
 
-/**
- * 「他のタブを閉じる」の対象。アクティブタブとピン留めタブは残す。
- * @param {Array<{id:number, pinned:boolean}>} tabs 対象ウィンドウのタブ
- * @param {number} activeTabId
- * @returns {number[]}
- */
 export function tabIdsToCloseOthers(tabs, activeTabId) {
   return tabs
     .filter((tab) => tab.id !== activeTabId && !tab.pinned)
     .map((tab) => tab.id);
 }
 
-/**
- * 「右のタブを閉じる」の対象。アクティブタブより右にある非ピン留めタブ。
- *
- * ピン留めは常にタブバーの左端に寄るので、通常はアクティブタブより右に来ない。
- * ただしアクティブタブ自身がピン留めのときは右側すべてが対象になりうるため、
- * 「残す」判断は index ではなく pinned で行う (Chrome 本体と同じ挙動)。
- *
- * @param {Array<{id:number, index:number, pinned:boolean}>} tabs 対象ウィンドウのタブ
- * @param {number} activeTabId
- * @returns {number[]}
- */
 export function tabIdsToCloseRight(tabs, activeTabId) {
   const activeTab = tabs.find((tab) => tab.id === activeTabId);
   if (!activeTab) {
@@ -38,21 +17,8 @@ export function tabIdsToCloseRight(tabs, activeTabId) {
     .map((tab) => tab.id);
 }
 
-/**
- * 「右/左のタブへ移動」の移動先。端では反対の端へ回り込む。
- *
- * 折りたたまれたタブグループのタブは飛ばす。Chrome 本体の ⌃Tab と同じ挙動で、
- * これを飛ばさないと、通り過ぎるだけのつもりがグループを勝手に展開してしまう。
- *
- * @param {Array<{id:number, index:number, groupId?:number}>} tabs 対象ウィンドウのタブ
- * @param {number} activeTabId
- * @param {1|-1} direction 1 で右、-1 で左
- * @param {number[]} [collapsedGroupIds=[]] 折りたたまれているグループの ID
- * @returns {number|null} 移動先が無ければ null
- */
 export function tabIdToActivateBeside(tabs, activeTabId, direction, collapsedGroupIds = []) {
   const collapsed = new Set(collapsedGroupIds);
-  // アクティブタブ自身は折りたたみグループに属していても候補に残す (位置の基準にするため)
   const candidates = tabs
     .filter((tab) => tab.id === activeTabId || !collapsed.has(tab.groupId))
     .sort((a, b) => a.index - b.index);
@@ -67,13 +33,6 @@ export function tabIdToActivateBeside(tabs, activeTabId, direction, collapsedGro
   return candidates[nextPosition].id;
 }
 
-/**
- * 統合の対象にしてよいウィンドウか。
- *
- * - `normal` 以外 … window.open() で切り出されたポップアップやアプリウィンドウを吸い込まない
- * - シークレットの不一致 … 通常⇔シークレットのタブ移動は API 自体が失敗する
- * - 統合先自身 … 動かす必要がない
- */
 function isMergeableWindow(win, targetWindow) {
   return (
     win.id !== targetWindow.id &&
@@ -82,19 +41,6 @@ function isMergeableWindow(win, targetWindow) {
   );
 }
 
-/**
- * 「すべてのウィンドウを現在のウィンドウに統合」の移動計画を立てる。
- *
- * ピン留め / タブグループ / 通常タブ を分けて返すのは、それぞれ移動手段が違うため。
- * 特にグループは、所属タブを tabs.move で個別に動かすと解体されてしまうので、
- * 実行側で tabGroups.move を使い分ける必要がある (SKILL.md 参照)。
- *
- * @param {Array<{id:number, type:string, incognito:boolean}>} windows
- * @param {Array<{id:number, windowId:number, index:number, pinned:boolean, groupId:number}>} tabs
- * @param {Array<{id:number, windowId:number}>} groups
- * @param {number} targetWindowId
- * @returns {{targetWindowId:number, pinnedTabIds:number[], groupIds:number[], plainTabIds:number[]}}
- */
 export function planMergeWindows(windows, tabs, groups, targetWindowId) {
   const emptyPlan = {
     targetWindowId,
@@ -115,7 +61,6 @@ export function planMergeWindows(windows, tabs, groups, targetWindowId) {
     return emptyPlan;
   }
 
-  // 元のウィンドウの並び順 → ウィンドウ内のタブ順、で移動する。統合後の並びを予測可能にするため。
   const windowOrder = new Map(sourceWindowIds.map((id, order) => [id, order]));
   const sourceTabs = tabs
     .filter((tab) => windowOrder.has(tab.windowId))
@@ -124,7 +69,6 @@ export function planMergeWindows(windows, tabs, groups, targetWindowId) {
       return byWindow !== 0 ? byWindow : a.index - b.index;
     });
 
-  // Chrome ではピン留めタブをグループに入れられないので、この2つは排他になる。
   const pinnedTabIds = sourceTabs
     .filter((tab) => tab.pinned)
     .map((tab) => tab.id);
@@ -141,24 +85,6 @@ export function planMergeWindows(windows, tabs, groups, targetWindowId) {
   return { targetWindowId, pinnedTabIds, groupIds, plainTabIds };
 }
 
-/**
- * 「すべてのタブをリロード」の対象。
- *
- * 除外するもの:
- *
- * - **破棄 (discarded) されたタブ** … Chrome がメモリ節約のために捨てたタブ。次に開いた
- *   ときにどうせ読み直されるので、わざわざ起こすとメモリと回線を使うだけになる。
- * - **シークレット状態が発動元と違うタブ** … 通常ウィンドウで押したつもりが、
- *   プライベートセッションの入力中フォームやログイン状態を吹き飛ばす事故を防ぐ。
- *   拡張が「シークレットモードでの実行を許可」されている場合にだけ起こりうる。
- *
- * ピン留めタブは含める (常駐させているダッシュボードこそ更新したいことが多い)。
- * ポップアップやアプリウィンドウを外すのは呼び出し側の query で行う。
- *
- * @param {Array<{id:number, discarded?:boolean, incognito?:boolean}>} tabs
- * @param {boolean} [incognito=false] 発動元のシークレット状態
- * @returns {number[]}
- */
 export function tabIdsToReloadAll(tabs, incognito = false) {
   return tabs
     .filter((tab) => !tab.discarded && Boolean(tab.incognito) === incognito)
@@ -167,15 +93,6 @@ export function tabIdsToReloadAll(tabs, incognito = false) {
 
 const GOOGLE_SEARCH_BASE_URL = 'https://www.google.com/search?q=';
 
-/**
- * ページから取った選択テキストを検索語に整える。
- *
- * 改行だけを消すと単語が繋がってしまう (「foo\nbar」→「foobar」) ので、
- * 改行もタブも連続空白もまとめて半角スペース1つに畳んでから前後を落とす。
- *
- * @param {string} rawSelection
- * @returns {string}
- */
 export function normalizeSelectedText(rawSelection) {
   if (typeof rawSelection !== 'string') {
     return '';
@@ -184,13 +101,6 @@ export function normalizeSelectedText(rawSelection) {
   return rawSelection.replace(/\s+/g, ' ').trim();
 }
 
-/**
- * 複数フレームから返ってきた選択テキストのうち、最初に中身のあるものを選ぶ。
- * allFrames で拾うと、選択のないフレームからも空文字が返ってくるため。
- *
- * @param {Array<{result?: string}>} injectionResults
- * @returns {string}
- */
 export function pickSelectedText(injectionResults) {
   if (!Array.isArray(injectionResults)) {
     return '';
@@ -206,14 +116,6 @@ export function pickSelectedText(injectionResults) {
   return '';
 }
 
-/**
- * Google の検索 URL を組み立てる。検索語が空なら null を返し、
- * 呼び出し側が「タブを開かない」を選べるようにする
- * (元にした拡張は空選択でも `?q=` の空検索タブを開いてしまっていた)。
- *
- * @param {string} searchText
- * @returns {string|null}
- */
 export function buildGoogleSearchUrl(searchText) {
   const normalized = normalizeSelectedText(searchText);
   if (normalized === '') {
@@ -223,22 +125,10 @@ export function buildGoogleSearchUrl(searchText) {
   return GOOGLE_SEARCH_BASE_URL + encodeURIComponent(normalized);
 }
 
-/**
- * オプション画面で変えられる設定の既定値。
- * chrome.storage.sync.get にそのまま渡し、未保存の項目をこの値で埋めてもらう。
- */
 export const DEFAULT_SETTINGS = Object.freeze({
-  // 選択テキスト検索のとき、検索語をクリップボードにもコピーする
   copySelectionOnSearch: true,
 });
 
-/**
- * storage から読んだ値を設定として使える形に整える。
- * 型の合わない値 (手で書き換えられた・将来の形式変更など) は既定値に戻す。
- *
- * @param {object} [stored]
- * @returns {{copySelectionOnSearch: boolean}}
- */
 export function resolveSettings(stored) {
   const copySelectionOnSearch = stored?.copySelectionOnSearch;
 

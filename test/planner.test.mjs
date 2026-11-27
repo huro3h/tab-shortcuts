@@ -1,5 +1,3 @@
-// planner.js は chrome API に触れないので Node から直接読める。
-// node --test test/planner.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -16,7 +14,6 @@ import {
   resolveSettings,
 } from '../planner.js';
 
-// index は配列順から自動で振る。テスト側で連番を書き間違えないようにするため。
 const tabsOf = (windowId, specs) =>
   specs.map((spec, index) => ({
     id: spec.id,
@@ -119,7 +116,6 @@ test('tabIdToActivateBeside: 折りたたまれたグループのタブは飛ば
 
   assert.equal(tabIdToActivateBeside(tabs, 10, 1, [5]), 13);
   assert.equal(tabIdToActivateBeside(tabs, 13, -1, [5]), 10);
-  // 展開されているグループには入る
   assert.equal(tabIdToActivateBeside(tabs, 12, 1, [6]), 10);
 });
 
@@ -228,7 +224,6 @@ test('planMergeWindows: ピン留め・グループ・通常を振り分ける',
 
   assert.deepEqual(plan.pinnedTabIds, [20]);
   assert.deepEqual(plan.groupIds, [100]);
-  // グループ所属タブは tabGroups.move 側で動くので、こちらには入れない
   assert.deepEqual(plan.plainTabIds, [23]);
 });
 
@@ -258,7 +253,6 @@ test('planMergeWindows: ウィンドウ順 → タブ順で並べる', () => {
 
   const plan = planMergeWindows(windows, tabs, [], 1);
 
-  // tabs 配列の順ではなく windows 配列の順 (2 → 3) に揃う
   assert.deepEqual(plan.plainTabIds, [20, 21, 30, 31]);
 });
 
@@ -308,7 +302,6 @@ test('tabIdsToReloadAll: シークレットから押せばシークレットだ�
     { id: 13, incognito: true },
   ];
 
-  // 破棄されたシークレットタブも起こさない
   assert.deepEqual(tabIdsToReloadAll(tabs, true), [11, 13]);
 });
 

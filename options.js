@@ -1,4 +1,3 @@
-// 項目がチェックボックス1つなので、保存ボタンは置かず変更した瞬間に保存する。
 import { DEFAULT_SETTINGS, resolveSettings } from './planner.js';
 
 const copySelectionOnSearch = document.getElementById('copySelectionOnSearch');
